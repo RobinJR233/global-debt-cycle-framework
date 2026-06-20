@@ -1,0 +1,19 @@
+# Global Debt Cycle Assessment Framework
+# Core dependencies
+numpy>=1.24.0,<2.0.0
+scipy>=1.10.0,<2.0.0
+
+# Data sources (optional, for production use)
+requests>=2.31.0        # HTTP client for IMF/WB/BIS APIs
+pandas>=2.0.0           # Data manipulation
+openpyxl>=3.1.0         # Excel I/O
+
+# Visualization (optional)
+matplotlib>=3.7.0       # Plotting
+plotly>=5.15.0          # Interactive charts
+folium>=0.14.0          # Choropleth maps
+
+# Utilities
+python-dotenv>=1.0.0    # Environment config
+rich>=13.0.0            # Beautiful CLI output
+tqdm>=4.65.0            # Progress bars

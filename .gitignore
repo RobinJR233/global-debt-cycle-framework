@@ -1,0 +1,11 @@
+# Runtime artifacts
+data/global_debt.db*
+data/*.db-shm
+data/*.db-wal
+
+# Scratch files
+_*.py
+_*.js
+
+# IDE
+.claude/
