@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>全球债务周期评估框架</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 :root{--bg:#0a0e17;--card:#1a2332;--border:#2a3a52;--txt:#e8edf5;--txt2:#8b9dc3;--muted:#5a6f94;--green:#00d68f;--blue:#0095ff;--yellow:#ffaa00;--orange:#ff6b35;--red:#ff3d71;--purple:#7c5cfc;--cyan:#00cfd8;--mono:'SF Mono','Fira Code',monospace;--sans:-apple-system,system-ui,sans-serif;--r:12px}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -614,6 +615,13 @@ function sel(code){
         html += '<div class="mc"><div class="ml">Rating</div><div class="mv">' + L.credit_rating + '</div></div>';
         html += '</div>';
 
+        html += '<div style="margin-top:.8rem;display:grid;grid-template-columns:1fr 1fr;gap:.8rem">';
+        html += '<div class="cb"><div class="cb-h"><span class="cb-f">Debt/GDP + g-r + Credit Gap</span><span class="cb-l">Trend</span></div>';
+        html += '<div class="cb-c"><canvas id="ch1" height="180"></canvas></div></div>';
+        html += '<div class="cb"><div class="cb-h"><span class="cb-f">Composite Score + EWS</span><span class="cb-l">Trend</span></div>';
+        html += '<div class="cb-c"><canvas id="ch2" height="180"></canvas></div></div>';
+        html += '</div>';
+
         // Data source info bar
         var srcInfo = '<div class="dsi" style="margin-top:.8rem;padding:.5rem .7rem;background:rgba(0,0,0,.15);border-radius:6px;border:1px solid var(--border);display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">';
         srcInfo += '<span style="font-size:.65rem;color:var(--muted)">数据源:</span>';
@@ -631,6 +639,34 @@ function sel(code){
         html = html.replace('</div>"', '</div>"' + srcInfo);
 
         document.getElementById("cd").innerHTML = html;
+
+        // Render charts
+        if (window._chart1) window._chart1.destroy();
+        if (window._chart2) window._chart2.destroy();
+        var years = d.years.map(function(y) { return y.year; });
+        window._chart1 = new Chart(document.getElementById("ch1"), {
+            type: "line",
+            data: {
+                labels: years,
+                datasets: [
+                    {label: "Gov Debt/GDP", data: d.years.map(function(y) { return y.gov_gross_debt_pct_gdp; }), borderColor: "#ff3d71", backgroundColor: "rgba(255,61,113,.1)", fill: false, tension: 0.3, borderWidth: 2, pointRadius: 0},
+                    {label: "g - r", data: d.years.map(function(y) { return y.g_minus_r; }), borderColor: "#0095ff", backgroundColor: "rgba(0,149,255,.1)", fill: false, tension: 0.3, borderWidth: 2, pointRadius: 0},
+                    {label: "Credit Gap", data: d.years.map(function(y) { return y.bis_credit_gap; }), borderColor: "#ffaa00", backgroundColor: "rgba(255,170,0,.1)", fill: false, tension: 0.3, borderWidth: 2, pointRadius: 0}
+                ]
+            },
+            options: {responsive: true, maintainAspectRatio: false, plugins: {legend: {labels: {color: "#8b9dc3", font: {size: 10}, boxWidth: 12}}}, scales: {x: {ticks: {color: "#5a6f94", font: {size: 9}, maxTicksLimit: 8}, grid: {color: "rgba(42,58,82,.3)"}}, y: {ticks: {color: "#5a6f94", font: {size: 9}}, grid: {color: "rgba(42,58,82,.3)"}}}}
+        });
+        window._chart2 = new Chart(document.getElementById("ch2"), {
+            type: "line",
+            data: {
+                labels: years,
+                datasets: [
+                    {label: "Composite Score", data: d.years.map(function(y) { return y.composite_score; }), borderColor: "#00d68f", backgroundColor: "rgba(0,214,143,.15)", fill: true, tension: 0.3, borderWidth: 2, pointRadius: 0},
+                    {label: "EWS Score", data: d.years.map(function(y) { return y.ews_score; }), borderColor: "#ff6b35", backgroundColor: "rgba(255,107,53,.1)", fill: false, tension: 0.3, borderWidth: 2, pointRadius: 0, yAxisID: "y1"}
+                ]
+            },
+            options: {responsive: true, maintainAspectRatio: false, plugins: {legend: {labels: {color: "#8b9dc3", font: {size: 10}, boxWidth: 12}}}, scales: {x: {ticks: {color: "#5a6f94", font: {size: 9}, maxTicksLimit: 8}, grid: {color: "rgba(42,58,82,.3)"}}, y: {min: 0, max: 100, ticks: {color: "#5a6f94", font: {size: 9}}, grid: {color: "rgba(42,58,82,.3)"}}, y1: {position: "right", min: 0, max: 100, ticks: {color: "#ff6d35", font: {size: 9}}, grid: {display: false}}}}
+        });
     } catch (e) {
         document.getElementById("cd").innerHTML = '<div style="padding:2rem;color:red">Error: ' + e.message + '</div>';
     }
