@@ -685,43 +685,43 @@ function sel(code){
         if (window._cmpChart) window._cmpChart.destroy();
         window._cmpChart = buildCmpChart();
 
-        // Build comparison chart
-        function buildCmpChart() {
-            var allYears = [];
-            for (var y = 2000; y <= 2026; y++) allYears.push(y);
-            var colors = {"USA":"#0095ff","CHN":"#ff3d71","JPN":"#ffaa00","DEU":"#00d68f","BRA":"#ff6d35","IND":"#7c5cfc","GBR":"#00cfd8","KOR":"#d2a8ff","RUS":"#ff7b72","MEX":"#79c0ff","TUR":"#ffa657","ZAF":"#a5d6ff","ITA":"#ff9ecf","ESP":"#7ee787","FRA":"#f0883e","ARG":"#56d364","SAU":"#e3b341","THA":"#db61a2","IDN":"#6cb6ff","CAN":"#3fb950"};
-            var datasets = [];
-            document.querySelectorAll(".cmp_toggle:checked").forEach(function(cb) {
-                var code = cb.value, d2 = window._D[code];
-                if (!d2) return;
-                var ym = {};
-                d2.years.forEach(function(y) { ym[y.year] = y.composite_score; });
-                datasets.push({label: d2.flag + " " + d2.name, data: allYears.map(function(y) { return ym[y] !== undefined ? ym[y] : null; }), borderColor: colors[code] || "#8b9dc3", backgroundColor: "transparent", tension: 0.3, borderWidth: 2, pointRadius: 1, pointHoverRadius: 4});
-            });
-            return new Chart(document.getElementById("cmpChart"), {
-                type: "line",
-                data: {labels: allYears, datasets: datasets},
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    interaction: {mode: "index", intersect: false},
-                    plugins: {legend: {labels: {color: "#8b9dc3", font: {size: 10}, boxWidth: 12}}, tooltip: {backgroundColor: "rgba(26,35,50,.95)", titleColor: "#e8edf5", bodyColor: "#8b9dc3", borderColor: "#2a3a52", borderWidth: 1}},
-                    scales: {x: {ticks: {color: "#5a6f94", font: {size: 9}, maxTicksLimit: 13}, grid: {color: "rgba(42,58,82,.3)"}}, y: {min: 0, max: 100, ticks: {color: "#5a6f94", font: {size: 9}, stepSize: 25}, grid: {color: "rgba(42,58,82,.3)"}}}
-                },
-                plugins: [{
-                    id: "crisisLines",
-                    afterDraw: function(chart) {
-                        var ctx = chart.ctx, xA = chart.scales.x, yA = chart.scales.y;
-                        var crises = [{y:2001,l:"Dot-com"},{y:2008,l:"GFC"},{y:2010,l:"Eurozone"},{y:2011,l:"EU Debt"},{y:2013,l:"Taper"},{y:2015,l:"China Crash"},{y:2018,l:"Trade War"},{y:2020,l:"COVID"},{y:2022,l:"Rate Hike"}];
-                        crises.forEach(function(c) {
-                            var px = xA.getPixelForValue(c.y);
-                            if (px < xA.left || px > xA.right) return;
-                            ctx.save(); ctx.beginPath(); ctx.setLineDash([3, 3]);
-                            ctx.strokeStyle = "rgba(255,61,113,.35)"; ctx.lineWidth = 1;
-                            ctx.moveTo(px, yA.top); ctx.lineTo(px, yA.bottom); ctx.stroke();
-                            ctx.fillStyle = "rgba(255,61,113,.8)"; ctx.font = "9px -apple-system,system-ui,sans-serif";
-                            ctx.textAlign = "center"; ctx.fillText(c.l, px, yA.top - 4); ctx.restore();
-                        });
-                    }
+// Build comparison chart
+function buildCmpChart() {
+    var allYears = [];
+    for (var y = 2000; y <= 2026; y++) allYears.push(y);
+    var colors = {"USA":"#0095ff","CHN":"#ff3d71","JPN":"#ffaa00","DEU":"#00d68f","BRA":"#ff6d35","IND":"#7c5cfc","GBR":"#00cfd8","KOR":"#d2a8ff","RUS":"#ff7b72","MEX":"#79c0ff","TUR":"#ffa657","ZAF":"#a5d6ff","ITA":"#ff9ecf","ESP":"#7ee787","FRA":"#f0883e","ARG":"#56d364","SAU":"#e3b341","THA":"#db61a2","IDN":"#6cb6ff","CAN":"#3fb950"};
+    var datasets = [];
+    document.querySelectorAll(".cmp_toggle:checked").forEach(function(cb) {
+        var code = cb.value, d2 = window._D[code];
+        if (!d2) return;
+        var ym = {};
+        d2.years.forEach(function(y) { ym[y.year] = y.composite_score; });
+        datasets.push({label: d2.flag + " " + d2.name, data: allYears.map(function(y) { return ym[y] !== undefined ? ym[y] : null; }), borderColor: colors[code] || "#8b9dc3", backgroundColor: "transparent", tension: 0.3, borderWidth: 2, pointRadius: 1, pointHoverRadius: 4});
+    });
+    return new Chart(document.getElementById("cmpChart"), {
+        type: "line",
+        data: {labels: allYears, datasets: datasets},
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: {mode: "index", intersect: false},
+            plugins: {legend: {labels: {color: "#8b9dc3", font: {size: 10}, boxWidth: 12}}, tooltip: {backgroundColor: "rgba(26,35,50,.95)", titleColor: "#e8edf5", bodyColor: "#8b9dc3", borderColor: "#2a3a52", borderWidth: 1}},
+            scales: {x: {ticks: {color: "#5a6f94", font: {size: 9}, maxTicksLimit: 13}, grid: {color: "rgba(42,58,82,.3)"}}, y: {min: 0, max: 100, ticks: {color: "#5a6f94", font: {size: 9}, stepSize: 25}, grid: {color: "rgba(42,58,82,.3)"}}}
+        },
+        plugins: [{
+            id: "crisisLines",
+            afterDraw: function(chart) {
+                var ctx = chart.ctx, xA = chart.scales.x, yA = chart.scales.y;
+                var crises = [{y:2001,l:"Dot-com"},{y:2008,l:"GFC"},{y:2010,l:"Eurozone"},{y:2011,l:"EU Debt"},{y:2013,l:"Taper"},{y:2015,l:"China Crash"},{y:2018,l:"Trade War"},{y:2020,l:"COVID"},{y:2022,l:"Rate Hike"}];
+                crises.forEach(function(c) {
+                    var px = xA.getPixelForValue(c.y);
+                    if (px < xA.left || px > xA.right) return;
+                    ctx.save(); ctx.beginPath(); ctx.setLineDash([3, 3]);
+                    ctx.strokeStyle = "rgba(255,61,113,.35)"; ctx.lineWidth = 1;
+                    ctx.moveTo(px, yA.top); ctx.lineTo(px, yA.bottom); ctx.stroke();
+                    ctx.fillStyle = "rgba(255,61,113,.8)"; ctx.font = "9px -apple-system,system-ui,sans-serif";
+                    ctx.textAlign = "center"; ctx.fillText(c.l, px, yA.top - 4); ctx.restore();
+                });
+            }
                 }]
             });
         }
@@ -781,6 +781,7 @@ function init(){
       +'<span class="cg">'+d.group+'</span>'
       +'</div>';
   }).join("");
+  buildCmpChart();
   sel("USA");
 }
 init();
