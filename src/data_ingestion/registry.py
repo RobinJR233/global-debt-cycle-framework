@@ -61,6 +61,10 @@ class DataSourceRegistry:
         """Get a data source by name."""
         return self._sources.get(name)
 
+    def get_source_names(self) -> List[str]:
+        """Return names of all registered sources."""
+        return list(self._sources.keys())
+
     def fetch_all(self, country: str, start_year: int, end_year: int) -> Dict[str, List[Dict]]:
         """Fetch from all registered sources and merge results."""
         results = {}

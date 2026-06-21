@@ -14,26 +14,12 @@ Used for indicators not available via live API in restricted environments.
 """
 
 import logging
-from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Dict, List, Optional
 
+from src.data_ingestion.registry import DataSource
+
 logger = logging.getLogger("debt_framework")
-
-
-class DataSource(ABC):
-    """Minimal base class to avoid circular import."""
-
-    source_name: str = "base"
-    update_frequency: str = "unknown"
-
-    @abstractmethod
-    def fetch(self, country: str, start_year: int, end_year: int) -> List[Dict]:
-        ...
-
-    @abstractmethod
-    def get_metadata(self) -> Dict:
-        ...
 
 # World Bank WDI 2024 release data: private credit to GDP (%)
 # Source: World Bank World Development Indicators, accessed 2024

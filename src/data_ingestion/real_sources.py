@@ -15,12 +15,15 @@ handles missing data by assigning neutral midpoint scores.
 """
 
 import logging
-import subprocess
-import json
+import time
 from typing import Dict, List, Optional
+from dataclasses import dataclass, field
 from datetime import datetime
 
+import requests
+
 from src.data_ingestion.registry import DataSource
+from src.data_ingestion.database import SourceSchedule
 
 logger = logging.getLogger("debt_framework")
 
@@ -104,22 +107,52 @@ IMF_INDICATORS = [
 ]
 
 
-def _curl_get(url: str, timeout: int = 20) -> Optional[Dict]:
-    """Fetch JSON via curl subprocess."""
-    try:
-        result = subprocess.run(
-            ["curl", "-s", "--max-time", str(timeout), url],
-            capture_output=True, text=True, timeout=timeout + 5,
-        )
-        if result.returncode != 0:
-            return None
-        return json.loads(result.stdout)
-    except (subprocess.TimeoutExpired, json.JSONDecodeError, Exception):
-        return None
+@dataclass
+class _RateLimiter:
+    """Simple token-bucket rate limiter."""
+    max_calls: int = 10
+    period: float = 1.0
+
+    _calls: List[float] = field(default_factory=list, repr=False)
+
+    def wait(self):
+        now = time.monotonic()
+        self._calls = [t for t in self._calls if now - t < self.period]
+        if len(self._calls) >= self.max_calls:
+            sleep_time = self.period - (now - self._calls[0])
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+        self._calls.append(time.monotonic())
+
+
+# Module-level rate limiters per source
+_wb_limiter = _RateLimiter(max_calls=10, period=1.0)
+_imf_limiter = _RateLimiter(max_calls=5, period=1.0)
+
+
+def _http_get(url: str, timeout: int = 20, retries: int = 3, backoff: float = 0.5,
+              session: Optional[requests.Session] = None) -> Optional[Dict]:
+    """Fetch JSON with retry and exponential backoff using a shared session."""
+    s = session or requests
+    last_exc = None
+    for attempt in range(retries):
+        try:
+            r = s.get(url, timeout=timeout)
+            r.raise_for_status()
+            return r.json()
+        except requests.RequestException as e:
+            last_exc = e
+            if attempt < retries - 1:
+                sleep = backoff * (2 ** attempt)
+                logger.debug(f"Retry {attempt + 1}/{retries} for {url} after {e}, sleeping {sleep}s")
+                time.sleep(sleep)
+    logger.warning(f"Failed after {retries} retries: {url} — {last_exc}")
+    return None
 
 
 def _wb_fetch_indicator(wb_code: str, our_field: str, country: str,
-                         start_year: int, end_year: int) -> List[Dict]:
+                         start_year: int, end_year: int,
+                         session: Optional[requests.Session] = None) -> List[Dict]:
     """Fetch one World Bank indicator for a country."""
     wb_code_2 = WB_COUNTRY_CODES.get(country.upper())
     if not wb_code_2:
@@ -129,11 +162,12 @@ def _wb_fetch_indicator(wb_code: str, our_field: str, country: str,
         f"https://api.worldbank.org/v2/country/{wb_code_2}/"
         f"indicator/{wb_code}?format=json&date={start_year}:{end_year}&per_page=100"
     )
-    data = _curl_get(url)
+    _wb_limiter.wait()
+    data = _http_get(url, session=session)
     if not data or not isinstance(data, list) or len(data) < 2:
         return []
 
-    records = []
+    records: Dict[int, Dict] = {}
     for item in data[1]:
         if not isinstance(item, dict):
             continue
@@ -143,19 +177,18 @@ def _wb_fetch_indicator(wb_code: str, our_field: str, country: str,
             continue
         try:
             year = int(year)
-            value = float(value) if value is not None else None
         except (ValueError, TypeError):
             continue
-
-        rec = next((r for r in records if r["year"] == year), None)
-        if rec is None:
-            rec = {"country": country.upper(), "year": year,
-                   "source": "world_bank_wdi"}
-            records.append(rec)
+        if year not in records:
+            records[year] = {"country": country.upper(), "year": year,
+                             "source": "world_bank_wdi"}
         if value is not None:
-            rec[our_field] = value
+            try:
+                records[year][our_field] = float(value)
+            except (ValueError, TypeError):
+                pass
 
-    return records
+    return list(records.values())
 
 
 class WorldBankDataSource(DataSource):
@@ -166,6 +199,10 @@ class WorldBankDataSource(DataSource):
     def __init__(self):
         self._cache: Dict[str, List[Dict]] = {}
         self._last_fetch: Optional[datetime] = None
+        self._session = requests.Session()
+
+    def __del__(self):
+        self._session.close()
 
     def fetch(self, country: str, start_year: int, end_year: int) -> List[Dict]:
         wb_code = WB_COUNTRY_CODES.get(country.upper())
@@ -178,7 +215,8 @@ class WorldBankDataSource(DataSource):
 
         merged: Dict[int, Dict] = {}
         for wb_ind, our_field in WB_INDICATORS:
-            for rec in _wb_fetch_indicator(wb_ind, our_field, country, start_year, end_year):
+            for rec in _wb_fetch_indicator(wb_ind, our_field, country, start_year, end_year,
+                                           session=self._session):
                 year = rec["year"]
                 if year not in merged:
                     merged[year] = {"country": country.upper(), "year": year,
@@ -203,18 +241,20 @@ class WorldBankDataSource(DataSource):
 
 
 def _imf_fetch_indicator(indicator_id: str, our_field: str, country: str,
-                          start_year: int, end_year: int) -> List[Dict]:
+                          start_year: int, end_year: int,
+                          session: Optional[requests.Session] = None) -> List[Dict]:
     """Fetch one IMF WEO indicator for a country."""
     url = (
         f"https://dataservices.imf.org/fruapim"
         f"?indicator_id={indicator_id}&format=json"
         f"&country={country.upper()}&startYear={start_year}&endYear={end_year}"
     )
-    data = _curl_get(url)
+    _imf_limiter.wait()
+    data = _http_get(url, session=session)
     if not data:
         return []
 
-    items = []
+    items: List[Dict] = []
     if isinstance(data, list):
         for entry in data:
             if isinstance(entry, list):
@@ -222,7 +262,7 @@ def _imf_fetch_indicator(indicator_id: str, our_field: str, country: str,
             elif isinstance(entry, dict):
                 items.append(entry)
 
-    records = []
+    records: Dict[int, Dict] = {}
     for item in items:
         year = item.get("year") or item.get("YEAR")
         value = item.get("value") or item.get("VALUE")
@@ -230,19 +270,18 @@ def _imf_fetch_indicator(indicator_id: str, our_field: str, country: str,
             continue
         try:
             year = int(year)
-            value = float(value) if value is not None else None
         except (ValueError, TypeError):
             continue
-
-        rec = next((r for r in records if r["year"] == year), None)
-        if rec is None:
-            rec = {"country": country.upper(), "year": year,
-                   "source": "imf_weo"}
-            records.append(rec)
+        if year not in records:
+            records[year] = {"country": country.upper(), "year": year,
+                             "source": "imf_weo"}
         if value is not None:
-            rec[our_field] = value
+            try:
+                records[year][our_field] = float(value)
+            except (ValueError, TypeError):
+                pass
 
-    return records
+    return list(records.values())
 
 
 class IMFWEOSource(DataSource):
@@ -253,6 +292,10 @@ class IMFWEOSource(DataSource):
     def __init__(self):
         self._cache: Dict[str, List[Dict]] = {}
         self._last_fetch: Optional[datetime] = None
+        self._session = requests.Session()
+
+    def __del__(self):
+        self._session.close()
 
     def fetch(self, country: str, start_year: int, end_year: int) -> List[Dict]:
         cache_key = f"imf_{country}_{start_year}_{end_year}"
@@ -261,7 +304,8 @@ class IMFWEOSource(DataSource):
 
         merged: Dict[int, Dict] = {}
         for imf_id, our_field in IMF_INDICATORS:
-            for rec in _imf_fetch_indicator(imf_id, our_field, country, start_year, end_year):
+            for rec in _imf_fetch_indicator(imf_id, our_field, country, start_year, end_year,
+                                            session=self._session):
                 year = rec["year"]
                 if year not in merged:
                     merged[year] = {"country": country.upper(), "year": year,
@@ -286,25 +330,10 @@ class IMFWEOSource(DataSource):
         }
 
 
-def get_all_source_schedules() -> list:
+def get_all_source_schedules() -> List[SourceSchedule]:
     """Return update schedule configs for all real data sources."""
-    from dataclasses import dataclass, field
-
-    @dataclass
-    class _Sched:
-        source_name: str
-        publisher: str
-        dataset_name: str
-        description: str = ""
-        api_endpoint: str = ""
-        url: str = ""
-        update_frequency: str = "annual"
-        frequency_hours: int = 8760
-        last_updated: str = ""
-        indicators: list = field(default_factory=list)
-
     return [
-        _Sched(
+        SourceSchedule(
             source_name="world_bank_wdi",
             publisher="World Bank",
             dataset_name="WDI",
@@ -315,7 +344,7 @@ def get_all_source_schedules() -> list:
             frequency_hours=2160,
             indicators=[f"{code}|{name}" for code, name in WB_INDICATORS],
         ),
-        _Sched(
+        SourceSchedule(
             source_name="imf_weo",
             publisher="IMF",
             dataset_name="WEO",

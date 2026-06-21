@@ -46,6 +46,21 @@ def run_pipeline_for_country(
     fe_config = FeatureEngineeringConfig()
     featured_data = engineer_features(raw_data["data"], fe_config)
 
+    if not featured_data:
+        return {
+            "country": country,
+            "group": raw_data["group"],
+            "years": [],
+            "latest_year": None,
+            "dsm": {"sustainability_verdict": "unknown", "baseline_path": [], "severe_path": []},
+            "external_vulnerability": {"overall_risk": "unknown"},
+            "sub_scores": [],
+            "composite_score": None,
+            "phase": "unknown",
+            "velocity": 0.0,
+            "ews_score": 0.0,
+        }
+
     # Stage 3: Early Warning Signals
     logger.info("[Stage 3] Early Warning Signals")
     is_em = raw_data["group"] == "EM"

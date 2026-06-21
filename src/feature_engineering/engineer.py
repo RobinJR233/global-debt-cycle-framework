@@ -17,6 +17,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from src.config.settings import EMERGING_MARKETS
+
 logger = logging.getLogger("debt_framework")
 
 
@@ -329,6 +331,9 @@ def engineer_features(panel_data: List[Dict], config: FeatureEngineeringConfig =
     country = panel_data[0]["country"]
     n = len(panel_data)
 
+    # Shallow copy to avoid mutating caller's data
+    panel_data = [dict(row) for row in panel_data]
+
     # Extract arrays
     def _get_array(key: str) -> np.ndarray:
         return np.array([row.get(key, np.nan) for row in panel_data])
@@ -376,11 +381,7 @@ def engineer_features(panel_data: List[Dict], config: FeatureEngineeringConfig =
     fiscal_space = compute_fiscal_space_indicator(debt_gdp, pb, nominal_growth, effective_rate)
 
     # --- Feature 7: Cycle phase classification ---
-    is_em = country in {"CHN", "IND", "BRA", "RUS", "MEX", "ZAF", "TUR", "IDN", "THA",
-                         "POL", "COL", "ARG", "CHL", "PER", "EGY", "NGA", "VNM", "PAK",
-                         "PHL", "HUN", "CZE", "ROU", "KAZ", "UKR", "MAR", "SAU", "ARE",
-                         "QAT", "ISR", "DOM", "GTM", "ECU", "BOL", "PRY", "URY", "TZA",
-                         "KEN", "ETH", "GHA"}
+    is_em = country in EMERGING_MARKETS
     phases = []
     for t in range(n):
         gap_val = bis_gap[t] if not np.isnan(bis_gap[t]) else 0

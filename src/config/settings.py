@@ -35,7 +35,7 @@ EUROZONE = [
 ]
 
 SMALL_OPEN_ECONOMIES = [
-    "SGP", "HKG", "CH", "LUX", "ISL", "FIN", "NOR", "NZL",
+    "SGP", "HKG", "CHE", "LUX", "ISL", "FIN", "NOR", "NZL",
 ]
 
 # ---------------------------------------------------------------------------
@@ -77,11 +77,13 @@ class EarlyWarningThresholds:
     current_account_deficit_em: float = 5.0
     sovereign_cds_em: float = 300.0        # bps
     sovereign_cds_dm: float = 100.0        # bps
-    gov_debt_gdp_threshold: float = 90.0   # % of GDP (Reinhart-Rogoff)
+    gov_debt_gdp: float = 90.0            # % of GDP (Reinhart-Rogoff)
     st_debt_reserves_ratio: float = 100.0  # % short-term ext debt / reserves
     reer_appreciation_3y: float = 15.0     # % over 3 years
     fiscal_deficit_dm: float = 5.0         # % of GDP
     fiscal_deficit_em: float = 3.0         # % of GDP
+    npl_threshold: float = 5.0
+    reserves_months_min: float = 3.0
 
 EW_THRESHOLDS = EarlyWarningThresholds()
 

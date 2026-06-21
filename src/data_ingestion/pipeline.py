@@ -86,9 +86,9 @@ def fetch_country_data(
                 prov_index[cy] = (rec, _SKIP_KEYS)
             # We'll use the first source that provides each (country, year)
 
-    # Merge into panel and collect DB write rows in one pass
+    # Merge into panel using pre-built index
     panel_map: Dict[str, Dict] = {}
-    db_rows: List[Tuple] = []  # (country, year, indicator, value, prov)
+    db_rows: List[Tuple] = []
     _now = datetime.utcnow().isoformat()
 
     for year in range(start_year, end_year + 1):
@@ -96,13 +96,10 @@ def fetch_country_data(
         row: Dict = {"country": country, "year": year}
         panel_map[key] = row
 
-        for records in raw_results.values():
-            for rec in records:
-                if rec.get("year") != year or rec.get("country") != country:
-                    continue
-                for k, v in rec.items():
-                    if k in _SKIP_KEYS:
-                        continue
+        cy_key = (country, year)
+        if cy_key in prov_index:
+            for k, v in prov_index[cy_key][0].items():
+                if k not in _SKIP_KEYS:
                     row[k] = v
 
     # Batch write to DB
@@ -160,7 +157,7 @@ def _build_result(country: str, start_year: int, end_year: int,
         "group": get_country_group(country),
         "start_year": start_year,
         "end_year": end_year,
-        "sources": list(registry._sources.keys()),
+        "sources": registry.get_source_names(),
         "data": panel,
         "fetched_at": datetime.utcnow().isoformat(),
     }

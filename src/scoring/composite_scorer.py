@@ -22,7 +22,8 @@ _RATING_SCORES: Dict[str, int] = {
     "BBB+": 60, "BBB": 55, "BBB-": 50,
     "BB+": 40, "BB": 35, "BB-": 30,
     "B+": 20, "B": 15, "B-": 10,
-    "CCC+": 5, "CCC": 3, "CCC-": 2, "CC": 1, "C": 0, "D": 0,
+    "CCC+": 5, "CCC": 3, "CCC-": 2, "CC": 1, "C": 0,
+    "D": 0, "SD": -10,
 }
 
 

@@ -6,33 +6,14 @@ early detection of debt crisis conditions.
 """
 
 import logging
-from typing import Dict, List, Tuple
+from typing import Dict, List
 from dataclasses import dataclass
 
 import numpy as np
 
+from src.config.settings import EarlyWarningThresholds
+
 logger = logging.getLogger("debt_framework")
-
-
-@dataclass
-class SignalConfig:
-    """Configuration for signal thresholds."""
-    bis_credit_gap_em: float = 10.0
-    bis_credit_gap_dm: float = 8.0
-    current_account_deficit_dm: float = 4.0
-    current_account_deficit_em: float = 5.0
-    sovereign_cds_em: float = 300.0
-    sovereign_cds_dm: float = 100.0
-    gov_debt_gdp: float = 90.0
-    st_debt_reserves_ratio: float = 100.0
-    reer_appreciation_3y: float = 15.0
-    fiscal_deficit_dm: float = 5.0
-    fiscal_deficit_em: float = 3.0
-    npl_threshold: float = 5.0
-    reserves_months_min: float = 3.0
-
-
-SIGNAL_CONFIG = SignalConfig()
 
 
 @dataclass
@@ -79,7 +60,7 @@ def evaluate_signal(
 def run_early_warning_signals(
     row: Dict,
     is_em: bool = True,
-    config: SignalConfig = None,
+    config: EarlyWarningThresholds = None,
 ) -> Dict:
     """Run all early warning signals for a single country-year observation.
 
@@ -87,7 +68,7 @@ def run_early_warning_signals(
         Dict with signal count, triggered signals, and composite EWS score.
     """
     if config is None:
-        config = SignalConfig()
+        config = EarlyWarningThresholds()
 
     signals = []
 
