@@ -392,6 +392,18 @@ def compute_composite_score(row, prev=None):
 <div class="ci" data-c="ARG" onclick="sel('ARG')"><div class="pd b"></div><span class="cf">🇦🇷</span><span class="cn">阿根廷</span><span class="cg">EM</span></div>
 <div class="ci" data-c="JPN" onclick="sel('JPN')"><div class="pd b"></div><span class="cf">🇯🇵</span><span class="cn">日本</span><span class="cg">AE</span></div></div></div>
 <div class="cd" id="cd"><div style="text-align:center;padding:2.5rem;color:var(--muted)"><div style="font-size:2.5rem;margin-bottom:.8rem">🌍</div><p>请从左侧选择一个国家</p></div></div>
+<div class="cb" style="margin-top:1rem"><div class="cb-h"><span class="cb-f">Multi-Country Debt Cycle Comparison</span><span class="cb-l">Composite Score · 2000-2026</span></div>
+<div style="padding:.5rem .7rem;display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
+<span style="font-size:.62rem;color:var(--muted)">显示:</span>
+<label style="font-size:.62rem;color:var(--txt2);cursor:pointer"><input type="checkbox" class="cmp_toggle" value="USA" checked> 🇺🇸 美国</label>
+<label style="font-size:.62rem;color:var(--txt2);cursor:pointer"><input type="checkbox" class="cmp_toggle" value="CHN" checked> 🇨🇳 中国</label>
+<label style="font-size:.62rem;color:var(--txt2);cursor:pointer"><input type="checkbox" class="cmp_toggle" value="JPN" checked> 🇯🇵 日本</label>
+<label style="font-size:.62rem;color:var(--txt2);cursor:pointer"><input type="checkbox" class="cmp_toggle" value="DEU" checked> 🇩🇪 德国</label>
+<label style="font-size:.62rem;color:var(--txt2);cursor:pointer"><input type="checkbox" class="cmp_toggle" value="BRA" checked> 🇧🇷 巴西</label>
+<label style="font-size:.62rem;color:var(--txt2);cursor:pointer"><input type="checkbox" class="cmp_toggle" value="IND" checked> 🇮🇳 印度</label>
+</div>
+<div class="cb-c" style="height:280px"><canvas id="cmpChart"></canvas></div>
+</div>
 </div>
 </section>
 <div class="ft"><p>Global Debt Cycle Assessment Framework · 全球债务周期评估框架</p><p style="margin-top:.3rem">基于 IMF/BIS/Reinhart-Rogoff 方法论 · 6 阶段 22 节点 · Python 实现</p></div>
@@ -638,7 +650,89 @@ function sel(code){
         srcInfo += '</div>';
         html = html.replace('</div>"', '</div>"' + srcInfo);
 
+
         document.getElementById("cd").innerHTML = html;
+
+        // Render charts
+        if (window._chart1) window._chart1.destroy();
+        if (window._chart2) window._chart2.destroy();
+        var years = d.years.map(function(y) { return y.year; });
+        window._chart1 = new Chart(document.getElementById("ch1"), {
+            type: "line",
+            data: {
+                labels: years,
+                datasets: [
+                    {label: "Gov Debt/GDP", data: d.years.map(function(y) { return y.gov_gross_debt_pct_gdp; }), borderColor: "#ff3d71", backgroundColor: "rgba(255,61,113,.1)", fill: false, tension: 0.3, borderWidth: 2, pointRadius: 0},
+                    {label: "g - r", data: d.years.map(function(y) { return y.g_minus_r; }), borderColor: "#0095ff", backgroundColor: "rgba(0,149,255,.1)", fill: false, tension: 0.3, borderWidth: 2, pointRadius: 0},
+                    {label: "Credit Gap", data: d.years.map(function(y) { return y.bis_credit_gap; }), borderColor: "#ffaa00", backgroundColor: "rgba(255,170,0,.1)", fill: false, tension: 0.3, borderWidth: 2, pointRadius: 0}
+                ]
+            },
+            options: {responsive: true, maintainAspectRatio: false, plugins: {legend: {labels: {color: "#8b9dc3", font: {size: 10}, boxWidth: 12}}}, scales: {x: {ticks: {color: "#5a6f94", font: {size: 9}, maxTicksLimit: 8}, grid: {color: "rgba(42,58,82,.3)"}}, y: {ticks: {color: "#5a6f94", font: {size: 9}}, grid: {color: "rgba(42,58,82,.3)"}}}}
+        });
+        window._chart2 = new Chart(document.getElementById("ch2"), {
+            type: "line",
+            data: {
+                labels: years,
+                datasets: [
+                    {label: "Composite Score", data: d.years.map(function(y) { return y.composite_score; }), borderColor: "#00d68f", backgroundColor: "rgba(0,214,143,.15)", fill: true, tension: 0.3, borderWidth: 2, pointRadius: 0},
+                    {label: "EWS Score", data: d.years.map(function(y) { return y.ews_score; }), borderColor: "#ff6d35", backgroundColor: "rgba(255,107,53,.1)", fill: false, tension: 0.3, borderWidth: 2, pointRadius: 0, yAxisID: "y1"}
+                ]
+            },
+            options: {responsive: true, maintainAspectRatio: false, plugins: {legend: {labels: {color: "#8b9dc3", font: {size: 10}, boxWidth: 12}}}, scales: {x: {ticks: {color: "#5a6f94", font: {size: 9}, maxTicksLimit: 8}, grid: {color: "rgba(42,58,82,.3)"}}, y: {min: 0, max: 100, ticks: {color: "#5a6f94", font: {size: 9}}, grid: {color: "rgba(42,58,82,.3)"}}, y1: {position: "right", min: 0, max: 100, ticks: {color: "#ff6d35", font: {size: 9}}, grid: {display: false}}}}
+        });
+
+        // Multi-country comparison
+        if (window._cmpChart) window._cmpChart.destroy();
+        window._cmpChart = buildCmpChart();
+
+        // Build comparison chart
+        function buildCmpChart() {
+            var allYears = [];
+            for (var y = 2000; y <= 2026; y++) allYears.push(y);
+            var colors = {"USA":"#0095ff","CHN":"#ff3d71","JPN":"#ffaa00","DEU":"#00d68f","BRA":"#ff6d35","IND":"#7c5cfc","GBR":"#00cfd8","KOR":"#d2a8ff","RUS":"#ff7b72","MEX":"#79c0ff","TUR":"#ffa657","ZAF":"#a5d6ff","ITA":"#ff9ecf","ESP":"#7ee787","FRA":"#f0883e","ARG":"#56d364","SAU":"#e3b341","THA":"#db61a2","IDN":"#6cb6ff","CAN":"#3fb950"};
+            var datasets = [];
+            document.querySelectorAll(".cmp_toggle:checked").forEach(function(cb) {
+                var code = cb.value, d2 = window._D[code];
+                if (!d2) return;
+                var ym = {};
+                d2.years.forEach(function(y) { ym[y.year] = y.composite_score; });
+                datasets.push({label: d2.flag + " " + d2.name, data: allYears.map(function(y) { return ym[y] !== undefined ? ym[y] : null; }), borderColor: colors[code] || "#8b9dc3", backgroundColor: "transparent", tension: 0.3, borderWidth: 2, pointRadius: 1, pointHoverRadius: 4});
+            });
+            return new Chart(document.getElementById("cmpChart"), {
+                type: "line",
+                data: {labels: allYears, datasets: datasets},
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: {mode: "index", intersect: false},
+                    plugins: {legend: {labels: {color: "#8b9dc3", font: {size: 10}, boxWidth: 12}}, tooltip: {backgroundColor: "rgba(26,35,50,.95)", titleColor: "#e8edf5", bodyColor: "#8b9dc3", borderColor: "#2a3a52", borderWidth: 1}},
+                    scales: {x: {ticks: {color: "#5a6f94", font: {size: 9}, maxTicksLimit: 13}, grid: {color: "rgba(42,58,82,.3)"}}, y: {min: 0, max: 100, ticks: {color: "#5a6f94", font: {size: 9}, stepSize: 25}, grid: {color: "rgba(42,58,82,.3)"}}}
+                },
+                plugins: [{
+                    id: "crisisLines",
+                    afterDraw: function(chart) {
+                        var ctx = chart.ctx, xA = chart.scales.x, yA = chart.scales.y;
+                        var crises = [{y:2001,l:"Dot-com"},{y:2008,l:"GFC"},{y:2010,l:"Eurozone"},{y:2011,l:"EU Debt"},{y:2013,l:"Taper"},{y:2015,l:"China Crash"},{y:2018,l:"Trade War"},{y:2020,l:"COVID"},{y:2022,l:"Rate Hike"}];
+                        crises.forEach(function(c) {
+                            var px = xA.getPixelForValue(c.y);
+                            if (px < xA.left || px > xA.right) return;
+                            ctx.save(); ctx.beginPath(); ctx.setLineDash([3, 3]);
+                            ctx.strokeStyle = "rgba(255,61,113,.35)"; ctx.lineWidth = 1;
+                            ctx.moveTo(px, yA.top); ctx.lineTo(px, yA.bottom); ctx.stroke();
+                            ctx.fillStyle = "rgba(255,61,113,.8)"; ctx.font = "9px -apple-system,system-ui,sans-serif";
+                            ctx.textAlign = "center"; ctx.fillText(c.l, px, yA.top - 4); ctx.restore();
+                        });
+                    }
+                }]
+            });
+        }
+
+        document.addEventListener("change", function(e) {
+            if (e.target.classList.contains("cmp_toggle")) {
+                if (window._cmpChart) window._cmpChart.destroy();
+                window._cmpChart = buildCmpChart();
+            }
+        });
+
 
         // Render charts
         if (window._chart1) window._chart1.destroy();
